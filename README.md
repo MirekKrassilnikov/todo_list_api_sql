@@ -1,4 +1,4 @@
-Here's a complete README you can copy and paste in one go:
+
 
 ```markdown
 # ToDo List API
