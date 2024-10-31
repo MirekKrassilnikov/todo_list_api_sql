@@ -28,7 +28,7 @@ func CreateDatabase() {
 
 	_, err = db.Exec(createTableSQL)
 	if err != nil {
-		fmt.Println("Error creating table:", err)
+		fmt.Println("Error creating tables:", err)
 		return
 	}
 

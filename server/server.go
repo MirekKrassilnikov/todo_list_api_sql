@@ -9,16 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MirekKrassilnikov/Todo_list_api_sql/repeater"
+	"github.com/MirekKrassilnikov/todo_list_api_sql/config"
+	"github.com/MirekKrassilnikov/todo_list_api_sql/models"
+	"github.com/MirekKrassilnikov/todo_list_api_sql/repeater"
 )
-
-type Task struct {
-	ID      string `json:"id,omitempty"`
-	Date    string `json:"date"`
-	Title   string `json:"title"`
-	Comment string `json:"comment"`
-	Repeat  string `json:"repeat"`
-}
 
 type Response struct {
 	ID    int    `json:"id,omitempty"`
@@ -53,7 +47,7 @@ func (ctl *Controller) TaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ctl *Controller) UpdateTask(w http.ResponseWriter, r *http.Request) {
-	var task Task
+	var task models.Task
 
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&task)
@@ -85,14 +79,14 @@ func (ctl *Controller) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Проверка формата даты
-	_, err = time.Parse(repeater.Layout, task.Date)
+	_, err = time.Parse(config.Layout, task.Date)
 	if err != nil {
 		http.Error(w, `{"error":"Invalid date format"}`, http.StatusBadRequest)
 		return
 	}
 
 	// Проверяем, существует ли задача
-	var existingTask Task
+	var existingTask models.Task
 	err = ctl.DB.QueryRow("SELECT id FROM scheduler WHERE id = ?", task.ID).Scan(&existingTask.ID)
 	if err == sql.ErrNoRows {
 		http.Error(w, `{"error":"Task not found"}`, http.StatusNotFound)
@@ -124,9 +118,9 @@ func (ctl *Controller) GetAllTasksHandler(w http.ResponseWriter, r *http.Request
 	}
 	defer rows.Close()
 
-	var tasks []Task
+	var tasks []models.Task
 	for rows.Next() {
-		var task Task
+		var task models.Task
 		err := rows.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 		if err != nil {
 			http.Error(w, `{"error":"error with rows"}`, http.StatusNotFound)
@@ -135,9 +129,9 @@ func (ctl *Controller) GetAllTasksHandler(w http.ResponseWriter, r *http.Request
 		tasks = append(tasks, task)
 	}
 	if len(tasks) == 0 {
-		tasks = []Task{}
+		tasks = []models.Task{}
 	}
-	responseMap := map[string][]Task{"tasks": tasks}
+	responseMap := map[string][]models.Task{"tasks": tasks}
 	response, err := json.Marshal(responseMap)
 	if err != nil {
 		http.Error(w, "Response JSON creation error", http.StatusInternalServerError)
@@ -161,7 +155,7 @@ func (ctl *Controller) getTaskById(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Выполняем SQL-запрос для получения задачи по id
-	var task Task
+	var task models.Task
 	err := ctl.DB.QueryRow("SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?", idTask).
 		Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 	if err != nil {
@@ -186,7 +180,7 @@ func (ctl *Controller) getTaskById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ctl *Controller) HandlePost(w http.ResponseWriter, r *http.Request) {
-	var task Task
+	var task models.Task
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&task)
 	if err != nil {
@@ -203,9 +197,9 @@ func (ctl *Controller) HandlePost(w http.ResponseWriter, r *http.Request) {
 
 	// Проверка формата даты и установка текущей даты, если дата некорректна
 	if task.Date == "" {
-		task.Date = time.Now().Format(repeater.Layout)
+		task.Date = time.Now().Format(config.Layout)
 	}
-	timeTimeDate, err := time.Parse(repeater.Layout, task.Date)
+	timeTimeDate, err := time.Parse(config.Layout, task.Date)
 	if err != nil {
 		http.Error(w, `{"error":"Invalid date format"}`, http.StatusBadRequest)
 		return
@@ -214,14 +208,14 @@ func (ctl *Controller) HandlePost(w http.ResponseWriter, r *http.Request) {
 	if timeTimeDate.Before(timeNowDateOnly) {
 		// Если дата задачи меньше текущей даты и есть правило повторения
 		if task.Repeat != "" {
-			nextDate, err := repeater.NextDate(time.Now().Format(repeater.Layout), task.Date, task.Repeat)
+			nextDate, err := repeater.NextDate(time.Now().Format(config.Layout), task.Date, task.Repeat)
 			if err != nil {
 				http.Error(w, `{"error":"Invalid repeat rule"}`, http.StatusBadRequest)
 				return
 			}
 			task.Date = nextDate
 		} else {
-			task.Date = time.Now().Format(repeater.Layout)
+			task.Date = time.Now().Format(config.Layout)
 		}
 	}
 
@@ -258,7 +252,7 @@ func MainHandle(res http.ResponseWriter, req *http.Request) {
 func (ctl *Controller) MarkAsDone(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 
-	var task Task
+	var task models.Task
 	err := ctl.DB.QueryRow("SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?", id).
 		Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 	if err != nil {

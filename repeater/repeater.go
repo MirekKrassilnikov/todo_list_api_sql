@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/MirekKrassilnikov/todo_list_api_sql/config"
 )
 
 func StringToTime(dateString string, layout string) (time.Time, error) {
@@ -16,11 +18,11 @@ func StringToTime(dateString string, layout string) (time.Time, error) {
 }
 
 func NextDate(now string, date string, repeat string) (string, error) {
-	nowTimeTime, err := StringToTime(now, Layout)
+	nowTimeTime, err := StringToTime(now, config.Layout)
 	if err != nil {
 		return "", fmt.Errorf("invalid date: %s", now)
 	}
-	startDateTimeTime, err := StringToTime(date, Layout)
+	startDateTimeTime, err := StringToTime(date, config.Layout)
 	if err != nil {
 		return "", fmt.Errorf("invalid date: %s", date)
 	}
